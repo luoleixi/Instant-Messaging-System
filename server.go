@@ -51,22 +51,17 @@ func (s *Server) BroadCat(user *User, msg string) {
 func (s *Server) Handler(conn net.Conn) {
 	//fmt.Println("链接创建成")
 
-	user := NewUser(conn)
+	user := NewUser(conn,s)
 
-	//用户上线，将用户加入到onlinMap中
-	s.mapLock.Lock() //
-	s.OnLineMap[user.Name] = user
-	s.mapLock.Unlock()
-	//广播当前用户上线消息
-	s.BroadCat(user, "已上线")
+	user.Online()
+
 	//接受客户端发送的消息
-
 	go func() {
 		buf := make([]byte, 4096)
 		for {
 			n, err := conn.Read(buf)
 			if n == 0 {
-				s.BroadCat(user, "下线")
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -75,8 +70,9 @@ func (s *Server) Handler(conn net.Conn) {
 			}
 			//提取用户消息
 			msg := string(buf[:n-1])
-			//消息进行广播
-			s.BroadCat(user, msg)
+			//用户针对 msg 进行消息处理
+			user.DoMessage(msg)
+
 		}
 	}()
 
