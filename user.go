@@ -65,7 +65,7 @@ func (user *User) DoMessage(msg string) {
 		for _, users := range user.server.OnLineMap {
 
 			onlineMsg := "[" + users.Addr + "]" + users.Name + "在线"
-			user.SendMsg(onlineMsg)
+			user.SendMsg(onlineMsg + "\n")
 		}
 
 		user.server.mapLock.Unlock()
@@ -77,6 +77,15 @@ func (user *User) DoMessage(msg string) {
 		_, ok := user.server.OnLineMap[newName]
 		if ok {
 			user.SendMsg("当前用户名已存在")
+		} else {
+			user.server.mapLock.Lock()
+			delete(user.server.OnLineMap, user.Name)
+			user.server.OnLineMap[newName] = user
+			user.server.mapLock.Unlock()
+
+			user.Name = newName
+			user.SendMsg("您已更新用户名" + user.Name + "\n")
+
 		}
 	} else {
 		user.server.BroadCat(user, msg)
