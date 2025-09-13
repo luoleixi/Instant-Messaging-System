@@ -55,8 +55,11 @@ func (s *Server) Handler(conn net.Conn) {
 
 	//用户上线，将用户加入到onlinMap中
 	user.Online()
-	//接受客户端发送的消息
 
+	//监听用户是否活跃的channel
+	isLive := make(chan bool)
+
+	//接受客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
 		for {
@@ -73,10 +76,29 @@ func (s *Server) Handler(conn net.Conn) {
 			msg := string(buf[:n-1])
 			//消息进行广播
 			user.DoMessage(msg)
+
+			//用户任意消息，代表当前用户是一个活跃的
+			isLive <- true
+
 		}
 	}()
 
-	select {}
+	for{
+		select {
+			case <-isLive:
+				//当前用户是活跃的，应该重置定时器
+				//不做任何事情，激活select，更新下面的定时器
+			case <- time.After(time.Second * 10):
+				//已经超时
+				//将当前 User 强制关闭
+				user.SendMsg("断开连接")
+				close(user.C)
+
+				conn.Close()
+				//退出当前 Handler
+				return
+		}
+	}
 }
 
 // 启动服务器的接口
